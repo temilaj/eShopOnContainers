@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.eShopOnContainers.Services.Ordering.API.Application.Commands;
 using Microsoft.eShopOnContainers.Services.Ordering.API.Application.Queries;
 using Microsoft.eShopOnContainers.Services.Ordering.API.Infrastructure.Services;
+using Ordering.API.Application.Commands;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace Microsoft.eShopOnContainers.Services.Ordering.API.Controllers
@@ -26,38 +28,51 @@ namespace Microsoft.eShopOnContainers.Services.Ordering.API.Controllers
             _identityService = identityService ?? throw new ArgumentNullException(nameof(identityService));
         }
 
-        [Route("new")]
-        [HttpPost]
-        public async Task<IActionResult> CreateOrder([FromBody]CreateOrderCommand command, [FromHeader(Name = "x-requestid")] string requestId)
+        [Route("cancel")]
+        [HttpPut]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+        public async Task<IActionResult> CancelOrder([FromBody]CancelOrderCommand command, [FromHeader(Name = "x-requestid")] string requestId)
         {
-            bool result = false;
+            bool commandResult = false;
             if (Guid.TryParse(requestId, out Guid guid) && guid != Guid.Empty)
             {
-                var requestCreateOrder = new IdentifiedCommand<CreateOrderCommand, bool>(command, guid);
-                result = await _mediator.SendAsync(requestCreateOrder);
+                var requestCancelOrder = new IdentifiedCommand<CancelOrderCommand, bool>(command, guid);
+                commandResult = await _mediator.Send(requestCancelOrder);
             }
-            else
+           
+            return commandResult ? (IActionResult)Ok() : (IActionResult)BadRequest();
+
+        }
+
+        [Route("ship")]
+        [HttpPut]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+        public async Task<IActionResult> ShipOrder([FromBody]ShipOrderCommand command, [FromHeader(Name = "x-requestid")] string requestId)
+        {
+            bool commandResult = false;
+            if (Guid.TryParse(requestId, out Guid guid) && guid != Guid.Empty)
             {
-                // If no x-requestid header is found we process the order anyway. This is just temporary to not break existing clients
-                // that aren't still updated. When all clients were updated this could be removed.
-                result = await _mediator.SendAsync(command);
+                var requestShipOrder = new IdentifiedCommand<ShipOrderCommand, bool>(command, guid);
+                commandResult = await _mediator.Send(requestShipOrder);
             }
 
-            if (result)
-            {
-                return Ok();
-            }
+            return commandResult ? (IActionResult)Ok() : (IActionResult)BadRequest();
 
-            return BadRequest();
         }
 
         [Route("{orderId:int}")]
         [HttpGet]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        [ProducesResponseType((int)HttpStatusCode.NotFound)]
         public async Task<IActionResult> GetOrder(int orderId)
         {
             try
             {
-                var order = await _orderQueries.GetOrder(orderId);
+                var order = await _orderQueries
+                    .GetOrderAsync(orderId);
+
                 return Ok(order);
             }
             catch (KeyNotFoundException)
@@ -70,7 +85,9 @@ namespace Microsoft.eShopOnContainers.Services.Ordering.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetOrders()
         {
-            var orders = await _orderQueries.GetOrders();
+            var orderTask = _orderQueries.GetOrdersAsync();
+
+            var orders = await orderTask;
 
             return Ok(orders);
         }
@@ -79,7 +96,8 @@ namespace Microsoft.eShopOnContainers.Services.Ordering.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCardTypes()
         {
-            var cardTypes = await _orderQueries.GetCardTypes();
+            var cardTypes = await _orderQueries
+                .GetCardTypesAsync();
 
             return Ok(cardTypes);
         }        

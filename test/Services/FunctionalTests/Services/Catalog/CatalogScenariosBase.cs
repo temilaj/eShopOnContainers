@@ -1,7 +1,9 @@
 ﻿using FunctionalTests.Middleware;
+using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.eShopOnContainers.Services.Catalog.API;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,10 +15,10 @@ namespace FunctionalTests.Services.Catalog
     {
         public TestServer CreateServer()
         {
-            var webHostBuilder = new WebHostBuilder();
+            var webHostBuilder = WebHost.CreateDefaultBuilder();
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory() + "\\Services\\Catalog");
             webHostBuilder.UseStartup<Startup>();
-
+            
             return new TestServer(webHostBuilder);
         }
 
@@ -32,9 +34,9 @@ namespace FunctionalTests.Services.Catalog
             }
         }
 
-        public static class Post
+        public static class Put
         {
-            public static string UpdateCatalogProduct = "api/v1/catalog/update";
+            public static string UpdateCatalogProduct = "api/v1/catalog/items";
         }
     }
 }
